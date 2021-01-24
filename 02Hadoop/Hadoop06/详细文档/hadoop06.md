@@ -1,4 +1,4 @@
-# hadoop_day06
+# hadoop
 
 ## 1.自定义GroupingComparator求取topN
 

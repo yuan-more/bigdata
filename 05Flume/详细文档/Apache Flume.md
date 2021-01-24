@@ -1,4 +1,4 @@
-# 一、 Apache Flume
+# Apache Flume
 
 ## 1． 概述
 
@@ -49,9 +49,9 @@ Flume系统中核心的角色是**agent**，agent本身是一个Java进程，一
  
 
 
- 
 
- 
+
+
 
 # 二、 Flume安装部署
 
@@ -126,9 +126,9 @@ telnet 命令如果不存在使用：yum -y install telnet进行联网安装
 telnet anget-hostname  port   （telnet localhost 44444）
 
 
- 
 
- 
+
+
 
 # 三、 Flume简单案例
 
@@ -209,9 +209,9 @@ trasactionCapacity：每次最大可以从source中拿到或者送到sink中的e
 - Source和sink之间的传递通道——channel，可用file channel 也可以用 内存channel
 
 
- 
 
- 
+
+
 
 配置文件编写：
 
@@ -316,9 +316,9 @@ a1.sinks.k1.hdfs.roundUnit = minute
 因为设置的是舍弃10分钟内的时间，因此，该目录每10分钟新生成一个。
 
 
- 
 
- 
+
+
 
 # 四、 Flume的load-balance、failover
 

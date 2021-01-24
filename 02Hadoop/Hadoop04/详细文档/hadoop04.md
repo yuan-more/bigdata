@@ -1,4 +1,4 @@
-# hadoop_day04
+# hadoop-MapReduce
 
 ## 1.MapReduce 分区与reduceTask的数量
 

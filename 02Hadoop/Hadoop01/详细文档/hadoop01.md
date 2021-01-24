@@ -1,4 +1,4 @@
-# day01_hadoop集群搭建
+# hadoop集群搭建
 
 ## 1. hadoop概念及其发展
 

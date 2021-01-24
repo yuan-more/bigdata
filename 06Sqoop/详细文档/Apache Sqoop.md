@@ -1,4 +1,4 @@
-# 一、 Apache Sqoop
+# Apache Sqoop
 
 ## 1． sqoop介绍 
 
@@ -71,7 +71,7 @@ bin/sqoop list-databases \
 到这里，整个Sqoop安装工作完成。
 
 
- 
+
 
 # 二、 Sqoop导入
 
@@ -88,9 +88,9 @@ Sqoop测试表数据
 创建三张表: **emp雇员表、 emp_add雇员地址表、emp_conn雇员联系表**。
 
 
- 
 
- 
+
+
 
 ## 1． 全量导入mysql表数据到HDFS
 
@@ -217,9 +217,9 @@ bin/sqoop import \
 ![img](assets/image002.jpg)
 
 
- 
 
- 
+
+
 
 ## 3． 导入表数据子集(where过滤)
 
@@ -246,7 +246,7 @@ bin/sqoop import \
 ![img](assets/image003.jpg)
 
 
- 
+
 
 ## 4． 导入表数据子集(query查询)
 
@@ -285,7 +285,7 @@ bin/sqoop import \
 sqoop命令中，--split-by id 通常配合 -m 10 参数使用。用于指定根据哪个字段进行划分并启动多少个maptask。
 
 
- 
+
 
 ## 5． 增量导入
 
@@ -308,9 +308,9 @@ append：追加，比如对大于last-value指定的值之后的记录进行追�
 指定自从上次导入后列的最大值（大于该指定的值），也可以自己设定某一值
 
 
- 
 
- 
+
+
 
 ### 5.1． Append模式增量导入
 
@@ -536,9 +536,9 @@ export模式：
 $ sqoop export (generic-args) (export-args)
 
 
- 
 
- 
+
+
 
 ## 1． 默认模式导出HDFS数据到mysql
 
