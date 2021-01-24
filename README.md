@@ -49,17 +49,17 @@ MySQL需要学习 sql 语法，范式，事务等。
 
 
 
-[hadoop详细文档1-集群搭建](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop01/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoopDay01.md)
+[hadoop详细文档1-集群搭建](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop01/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop01.md)
 
-[hadoop详细文档2-HDFS详解](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop02/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoopday02.md)
+[hadoop详细文档2-HDFS详解](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop02/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop02.md)
 
-[hadoop详细文档3-HDFS API](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop03/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoopDay03.md)
+[hadoop详细文档3-HDFS API](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop03/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop03.md)
 
-[hadoop详细文档4-MapReduce](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop04/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop_day04.md)
+[hadoop详细文档4-MapReduce](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop04/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop04.md)
 
-[hadoop详细文档5-MapReduce原理及API](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop05/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop_day05.md)
+[hadoop详细文档5-MapReduce原理及API](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop05/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop05.md)
 
-[hadoop详细文档6-YARN](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop06/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop_day06.md)
+[hadoop详细文档6-YARN](https://github.com/sunmyuan/bigdata/blob/master/02Hadoop/Hadoop06/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/hadoop06.md)
 
 
 ## zookeeper
