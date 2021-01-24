@@ -1,0 +1,6 @@
+hive的安装包:    https://archive.cloudera.com/cdh5/cdh/5/hive-1.1.0-cdh5.14.0.tar.gz
+
+mysql的安装包：
+链接：https://pan.baidu.com/s/1FjbTZAoTZiEyNipF49Wb1A 
+提取码：aaaa 
+复制这段内容后打开百度网盘手机App，操作更方便哦

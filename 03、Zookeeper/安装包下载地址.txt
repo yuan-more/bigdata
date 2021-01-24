@@ -1,0 +1,1 @@
+http://archive.cloudera.com/cdh5/cdh/5/zookeeper-3.4.5-cdh5.14.0.tar.gz

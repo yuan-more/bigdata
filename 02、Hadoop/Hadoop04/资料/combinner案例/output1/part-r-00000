@@ -1,0 +1,32 @@
+历史	2
+武林秘籍	6
+计算机	7
+
+
+ Map-Reduce Framework
+19/09/02 10:18:48 INFO mapred.JobClient:     Map input records=15
+19/09/02 10:18:48 INFO mapred.JobClient:     Map output records=15
+19/09/02 10:18:48 INFO mapred.JobClient:     Map output bytes=222
+19/09/02 10:18:48 INFO mapred.JobClient:     Input split bytes=152
+19/09/02 10:18:48 INFO mapred.JobClient:     Combine input records=0
+19/09/02 10:18:48 INFO mapred.JobClient:     Combine output records=0
+19/09/02 10:18:48 INFO mapred.JobClient:     Reduce input groups=3
+19/09/02 10:18:48 INFO mapred.JobClient:     Reduce shuffle bytes=0
+19/09/02 10:18:48 INFO mapred.JobClient:     Reduce input records=15
+19/09/02 10:18:48 INFO mapred.JobClient:     Reduce output records=3
+19/09/02 10:18:48 INFO mapred.JobClient:     Spilled Records=30
+19/09/02 10:18:48 INFO mapred.JobClient:     Total committed heap usage (bytes)=639631360
+
+ Map-Reduce Framework
+19/09/02 10:20:22 INFO mapred.JobClient:     Map input records=15
+19/09/02 10:20:22 INFO mapred.JobClient:     Map output records=15
+19/09/02 10:20:22 INFO mapred.JobClient:     Map output bytes=222
+19/09/02 10:20:22 INFO mapred.JobClient:     Input split bytes=152
+19/09/02 10:20:22 INFO mapred.JobClient:     Combine input records=15
+19/09/02 10:20:22 INFO mapred.JobClient:     Combine output records=3
+19/09/02 10:20:22 INFO mapred.JobClient:     Reduce input groups=3
+19/09/02 10:20:22 INFO mapred.JobClient:     Reduce shuffle bytes=0
+19/09/02 10:20:22 INFO mapred.JobClient:     Reduce input records=3
+19/09/02 10:20:22 INFO mapred.JobClient:     Reduce output records=3
+19/09/02 10:20:22 INFO mapred.JobClient:     Spilled Records=6
+19/09/02 10:20:22 INFO mapred.JobClient:     Total committed heap usage (bytes)=639631360

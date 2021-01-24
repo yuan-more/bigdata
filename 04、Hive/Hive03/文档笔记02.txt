@@ -1,0 +1,269 @@
+课前回顾:
+1) hive常用函数:  字符串函数  *****
+2) hive的高级函数:  lateral view  ,  explode, reflect
+3) hive的自定义UDF函数: 开发, 会配置
+4) 数据的压缩方案:  hive的压缩  7个
+5) hive的数据存储格式:  TextFile  sequenceFile  ORC   parquet
+	两大类:  
+		行存储  TextFile  sequenceFile
+		列存储  ORC   parquet
+
+6) 存储 和 压缩相结合操作:  ORC  +  snappy
+
+7) hive的调优 :   fetch , 本地模式, 表的优化
+
+今日内容:
+
+1) hive的调优:  4.4~4.10
+2) 窗口函数: 分析函数  *****
+3) hive的综合练习
+
+
+
+
+
+1) hive的调优:  
+	1.1 数据倾斜:  调节map的数量 和 reduceTask
+		如果多个map, 接收的数据量相差比较大, 认为出现map端数据倾斜
+		如果发现某几个reduceTask出现了大量的数据, 而其他的reducetask则没有, 认为出现了reduceTask的数据倾斜的问题
+		
+		map 端如何来调节mapTask的数量:  
+			map的数量: 文件切片的数量. 如果有10个文件, 每个文件1KB ,  有 3个  :100M  50M  130M
+				map的数量:  
+					如果文件的数量很多, 但是都是一些小文件, 如果有太多的map, 能不能跑, 资源, 时间
+					解决方案: 将一些小的文件进行合并操作, 减少map数量
+						在hive中, 也是支持对小文件的合并 :  
+							set mapred.max.split.size=112345600;
+
+							set mapred.min.split.size.per.node=112345600;
+
+							set mapred.min.split.size.per.rack=112345600;
+							
+							set hive.input.format= org.apache.hadoop.hive.ql.io.CombineHiveInputFormat;
+				
+							这个参数表示执行前进行小文件合并，前面三个参数确定合并文件块的大小，大于文件块大小128m的，按照128m来分隔，小于128m，大于100m的，按照100m来分隔，把那些小于100m的（包括小文件和分隔大文件剩下的），进行合并
+	
+				如何来增加map的数量:  
+					100M : 只有一列数据
+					将这个文件, 进行切割, 切割成小文件
+					
+	
+			对于map数量:  设置有时候会多一点, 有的时候, 需要让少一点(取决于文件中数据)
+		reduce的数量 :
+			一般是可以通过公式来决定, 要启动多少个reduce的数量: 
+					N=min(参数2，总输入数据量/参数1)
+						参数1:  每个Reduce处理的数据量默认是256MB
+							hive.exec.reducers.bytes.per.reducer=256123456   
+						参数2:  每个任务最大的reduce数，默认为1009
+									hive.exec.reducers.max=1009
+					min(1009,10G/256M) :
+			reduce数量, 也不能有太多了:  每一个reduce都会得出结果文件
+			
+				在设置reduce个数的时候也需要考虑这两个原则：
+					处理大数据量利用合适的reduce数；
+					使单个reduce任务处理数据量大小要合适；
+	1.2 : 使用 EXPLAIN  :  可以查看, 某一个SQL语句执行的流程
+	1.3 : 并行执行 :  hive在执行的时候, 按照一个阶段, 一个阶段的执行, 当执行一个SQL的时候,可以会有好几个阶段, 有的时候, 阶段与阶段之间
+			没有太多的联系, hive设置并行的执行某几个阶段. 提高的效率
+			
+			select * from  student
+			union all
+			select * from teacher;
+			注意:  虽然hive可以进行并行的执行, 但是取决于yarn平台是否有资源, 如果没有资源, 那么业绩没有并行
+					加大对资源的利用率
+			
+			如何开启:
+				set hive.exec.parallel=false;??            //打开任务并行执行  默认为false
+				set hive.exec.parallel.thread.number=8;  //同一个sql允许最大并行度，默认为8。
+				
+	1.4:严格模式 : 默认情况下是关闭的, 提前的将一些效率非常低的SQL提前进行规避掉, 让其不执行	
+			如果开启了, 能够将一下几种低效率的SQL给规避掉:
+				1) 如果查询的是分区表, 在查询的过程中,没有指定分区字段过滤, 不允许执行
+				2) 如果使用order by (全局排序), 因为只有一个reduce的数量, 必须使用limit, 获取对应数据, 否则不执行
+				3) 限制笛卡尔积的执行: 如果发现多表查询中, 有笛卡尔积的问题, 不会执行
+	1.5 jvm重用: 是否可以容器一个资源容器, 被重复使用多次呢? 默认情况下是不允许的
+			如何设置:
+				set??mapred.job.reuse.jvm.num.tasks=10;  10 表示, 可以重用的次数
+		
+	1.6 hive推测执行: 一般将其关闭
+	
+
+2) 窗口函数(分析函数) :  
+	需求: 统计出网站在每一天的pv的增长指数
+		0~1  :  10PV
+		1~2  : 10pv
+		2~3   : 20 PV
+		
+				原值   增长到了多少
+		0~1 :   10pv       10
+		0~2 :    10PV      20
+		0~3 :    20PV      40
+	窗口函数具体语法 :  over (partition by xxx order by xxx)  窗口函数兼具分组和排序功能
+	
+	
+	2.1) 窗口函数  和 聚合函数组合使用:  
+		  使用格式:  
+				聚合函数  over(partition by xxx order by xxx [desc | asc] [rows between [n preceding | n following | current row | unbounded preceding |  unbounded following] and [n preceding | n following | current row | unbounded preceding |  unbounded following] ] )
+	
+			总结:    
+				over: 决定 使用那个字段进行分组, 使用那个字段来排序, 具体要统计那些范围的数据
+					注意: 如果over在使用没有添加 排序的字段, 相当于对整个组内进行操作
+							如果没有排序, 也就没有了范围的设置, 默认全部分组内数据
+				聚合函数: 执行一个什么样操作
+	
+	2.2 分析函数 和 窗口函数组合使用:  业务场景 专门解决求 分组topn  和 几分之几的问题
+			row_number , rank ,  dense_rank    ntile  : 目的给数据打标号
+			
+			三兄弟:  row_number , rank ,  dense_rank   实现分组topn :  看到 每个  各个 前n个
+			总结:  根据需求
+			 	row_number: 进行打标号的时候, 不会考虑重复问题, 依次往下打编号
+				rank :  进行打标号的时候, 会考虑重复的问题, 只要重复编号就是一致的, 将下面的标号挤掉
+				dense_rank: 进行打标号的时候, 会考虑重复的问题,只要重复编号就是一致的,不会挤掉下面的编号, 依次来排序
+				
+			ntile :  几分之几的问题
+				总结:  在进行切分时候, 尽可能的进行平均切分 如果遇到了除不尽情况, 最小的一份和最大的一份相差不能超过1
+				
+		
+		
+3. hive的综合案例
+
+	需求: 数据目前在本地(hdfs), 要求统计出如下的需求:
+		--统计视频观看数Top10
+		--统计视频类别热度Top10
+
+
+	1) 熟悉数据文件中各个字段的内容
+	2) 构建原始表数据 :   --直接省略
+	3) 进行数据清洗: 	
+		1) 清洗分类数据 : 假设 以 & 分隔数据
+				以& 切割, 然后去掉数据两端空间, 然后将多个分类以 & 重新拼接   
+		2) 清洗关联视频数据:  
+			先以 空格分隔, 然后 以&拼接, 最后一个不要&符号
+		3) 将所有的字段以 \t 分隔
+	4) 构建数据仓库表 :  模拟出原始表, 通过原始表导入数据仓库中
+	
+	5) 数据分析
+			
+	
+
+进行数据清洗:  使用MapReduce来做
+
+
+需求： 统计视频观看数 top10
+
+select 
+*
+from  youtubevideo_orc  order  by views desc limit 10 ; 
+
+	
+需求2:  --统计视频类别热度Top10
+		即统计每个类别有多少个视频，显示出包含视频最多的前10个类别。
+		
+		
+	1) 统计每个类别有那些视频
+		select 
+			videoId,
+			category1
+		from youtubevideo_orc lateral view explode(category) categorytable as category1; 
+		
+	2) 统计每个类别有多少个视频
+		
+		select 
+		category1,	
+		count(category1)
+		from (select 
+		videoId,
+		category1
+		from youtubevideo_orc lateral view explode(category) categorytable as category1) temp	
+
+		group by category1;  
+		
+	3) 显示出包含视频最多的前10个类别
+	select 
+	category1,
+	count(category1) as num
+	from (select
+	videoId,
+	category1
+	from youtubevideo_orc lateral view explode(category) categorytable as category1) temp	
+	group by category1 order by num desc limit 10;
+	
+	
+
+json :   本质上就是一个字符串,只不过这个字符串有一定格式
+	1) json的格式有几种方式:   二种格式
+			一种:  是以 {key1:value1,key2:value2....}
+			第二种: 是以 [ v1,v2,v3....  ]
+			
+			注意: 第三种 和第四种, 本质上上面的两种的派生出来的
+			第三种:  是以  {key1 :  [ v1,v2,v3]}
+			第四种:  是以 [{},{},{}]
+	2)  json对应格式, 在 java中  和 js中, 对应哪些类型(都能转换成那种类型) :  
+			
+				json的格式                          java                js
+			{key1:value1,key2:value2....}        map  | javaBean       js的对象: var person = {"name":张三","age",12};  person.name person.age  eval()
+			[ v1,v2,v3....  ]					 数组, list,set         数组   var  arr = ["",""]
+	3) 看到json后, 如何知道应该转换为那种类型:  只需要查看最外层的符号即可
+		如果最外层是{} 可以转换为 map 或者 javaBean,  如果最外层是[]  , 可以转换 list , 数组,set 
+			
+	4) 案例
+			{"id":1,"name":"zahngsan","friendList":["2","3","4","5","6","7"]  } :  
+			转换java中对象 :  如果javaBean
+				int id  
+				String name
+				List<String> friendList
+
+							转换为 map呢:    Map<String,Object>
+					
+							
+		案例2: 
+			[{"id":1,"titile":[hadoop, hive]} ,{"id":2,title:[sqoop,spring]} ]
+			
+		转换java对象:  
+			List<Map<String,Object>>
+			
+			List<javaBean>
+			
+			javaBean:
+				id:  int
+				titile:  list
+		
+
+		案例3: 
+		javaBean:
+				id:  int
+				titile:  list
+				
+		转换json:  
+			
+			[ {"":[{"": {id:"",title:""}, "": {}  } ]   }  ]
+			
+			
+		请将这个转回成java对象
+			List<Map<String,List<Map<String,map<Stirng,string>>>>>
+			
+			
+	一个标准javaBean对象应该有哪些要求:
+		1) 成员变量私有化
+		2) 提供get 和 set 方法
+		3) 提供无参构造
+		4) 实现序列化接口
+		
+		
+
+	在开发中, 对应json的转换, 一般都是通过一些转换来实现:  jackJson(Spring)  fastJson(ali)  Gson(谷歌)  ....
+		第一步'; 导包
+			 <dependency>
+				<groupId>com.google.code.gson</groupId>
+				<artifactId>gson</artifactId>
+				<version>2.8.1</version>
+			</dependency>
+	
+		第二步:创建 Gson对象
+		
+		第三步: 使用API转换:  
+			json 转换 对象   :Type  type = gson.fromJson(String json, type)
+			对象转换 json :  String json =   gson.toJson(T)
+	
+
+	

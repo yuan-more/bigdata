@@ -1,0 +1,3 @@
+﻿# hive.job
+type=command
+command=/root/apps/hive/bin/hive -e 'show tables'

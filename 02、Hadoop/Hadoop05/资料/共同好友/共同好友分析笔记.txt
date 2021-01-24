@@ -1,0 +1,70 @@
+A :  B   C   D
+B :  A  D  
+C :  D  A  B
+D :  A  B  C
+
+要求使用MapReduce来实现, 可以使用多次MapReduce
+
+
+求: 某一个用户在那些人的好友列表中   : 相同类型的key会发往从一个reduce中, 相同key的value值会合并成一个集合
+	
+Map 阶段:   k2   v2
+			B    A
+			C    A
+			D    A
+			A    B
+			D    B
+			D    C
+			A    C
+			B    C
+			A    D
+			B    D
+			C    D
+	
+reduce阶段:  相同key的value值会合并成一个集合
+		B : [A C D]
+		C : [A D]
+		D :  [A  C  B]
+		A :  [B  C  D]
+		
+		输出 :
+			B	A-C-D-
+			C	A-D-
+			D	A-C-B
+			A	B-C-D
+
+需求2: 两两的共同好友
+
+map端 :  k2   v2
+		 A-C  B
+		 A-D  B
+		 C-D  B
+		 A-D  C
+		 A-C  D
+		 A-B  D
+		 C-B  D
+		 B-C  A
+		 B-D  A
+		 C-D  A
+
+
+reduce:  相同key的value值会合并成一个集合
+	A-B  :   D
+	A-C  ：  B  D
+	A-D  :   B  C
+	B-C  :   D A
+	B-D  :   A
+	C-D  :   B  A
+	
+	
+
+最终结果:  
+
+A-B :  D
+A-C :  D B
+A-D :  B C
+B-C :  A D
+B-D :  A
+C-D :  A  B
+
+

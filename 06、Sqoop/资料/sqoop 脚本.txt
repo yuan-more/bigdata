@@ -1,0 +1,347 @@
+
+bin/sqoop list-databases --connect jdbc:mysql://localhost:3306/ --username root --password hadoop
+
+##导入mysql表数据到HDFS
+
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--target-dir /sqoopresult212 \
+--table emp --m 1
+
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--target-dir /sqoopresult213 \
+--fields-terminated-by '\t' \
+--table emp --m 1
+
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--target-dir /sqoopresult214 \
+--fields-terminated-by '\t' \
+--split-by id \
+--table emp --m 2
+
+
+hdfs dfs -cat /sqoopresult/part-m-00000
+---------------------------------------------------------------------
+导入mysql表数据到HIVE
+
+将关系型数据的表结构复制到hive中
+bin/sqoop create-hive-table \
+--connect jdbc:mysql://node-1:3306/userdb \
+--table emp_add \
+--username root \
+--password hadoop \
+--hive-table test.emp_add_sp
+
+其中 --table emp_add为mysql中的数据库sqoopdb中的表   
+	 --hive-table emp_add_sp 为hive中新建的表名称
+   
+从关系数据库导入文件到hive中
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table emp_add \
+--hive-table test.emp_add_sp \
+--hive-import \
+--m 1
+
+
+方式二：直接导入数据到hive中 包括表结构和数据
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table emp_conn \
+--hive-import \
+--m 1 \
+--hive-database test;
+
+---------------------------------------------------------------------
+导入表数据子集
+
+Where查询过滤导入：
+
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--where "city ='sec-bad'" \
+--target-dir /wherequery \
+--table emp_add --m 1
+
+
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--target-dir /wherequery12 \
+--query 'select id,name,deg from emp WHERE  id>1203 and $CONDITIONS' \
+--split-by id \
+--fields-terminated-by '\001' \
+--m 2
+
+使用sql语句来进行查找是不能加参数--table 
+并且必须要添加where条件，
+并且where条件后面必须带一个$CONDITIONS 这个字符串，
+并且这个sql语句必须用单引号，不能用双引号
+
+sqoop命令中–split-by id通常配合-m 10参数使用。
+首先sqoop会向关系型数据库比如mysql发送一个命令:select max(id),min(id) from test。
+然后会把max、min之间的区间平均分为10分，最后10个并行的map去找数据库，导数据就正式开始。
+
+
+
+---------------------------------------------------------------------
+增量导入：
+Append模式
+
+执行以下指令先将我们之前的数据导入
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--target-dir /appendresult \
+--table emp --m 1
+
+使用hdfs dfs -cat查看生成的数据文件，发现数据已经导入到hdfs中.
+
+然后我们在mysql的emp中插入2条数据:
+insert into `userdb`.`emp` (`id`, `name`, `deg`, `salary`, `dept`) values ('1206', 'allen', 'admin', '30000', 'tp');
+insert into `userdb`.`emp` (`id`, `name`, `deg`, `salary`, `dept`) values ('1207', 'woon', 'admin', '40000', 'tp');
+
+执行如下的指令，实现增量的导入:
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table emp --m 1 \
+--target-dir /appendresult \
+--incremental append \
+--check-column id \
+--last-value 1205
+----------------------------------------------------------------------
+增量导入：
+Lastmodified模式
+
+首先我们要创建一个customer表，指定一个时间戳字段
+create table customertest(id int,name varchar(20),last_mod timestamp default current_timestamp on update current_timestamp);
+
+此处的时间戳设置为在数据的产生和更新时都会发生改变. 
+
+
+插入如下记录:
+insert into customertest(id,name) values(1,'neil');
+insert into customertest(id,name) values(2,'jack');
+insert into customertest(id,name) values(3,'martin');
+insert into customertest(id,name) values(4,'tony');
+insert into customertest(id,name) values(5,'eric');
+
+此时执行sqoop指令将数据导入hdfs:
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--target-dir /lastmodifiedresult \
+--table customertest --m 1
+
+
+再次插入一条数据进入customertest表
+insert into customertest(id,name) values(6,'james')
+
+使用incremental的方式进行增量的导入:
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table customertest \
+--target-dir /lastmodifiedresult \
+--check-column last_mod \
+--incremental lastmodified \
+--last-value "2019-06-05 15:52:58" \
+--m 1 \
+--append
+
+此处已经会导入我们最后插入的一条记录,但是我们却发现此处插入了2条数据，这是为什么呢？ 
+这是因为采用lastmodified模式去处理增量时，会将大于等于last-value值的数据当做增量插入
+
+注意: 
+使用lastmodified模式进行增量处理要指定增量数据是以append模式(附加)还是merge-key(合并)模式添加 
+---------------------------------------------------------------------
+merge-by的模式
+
+update customertest set name = 'Neil' where id = 1;
+更新之后，这条数据的时间戳会更新为我们更新数据时的系统时间.
+执行如下指令，把id字段作为merge-key:
+
+bin/sqoop import \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table customertest \
+--target-dir /lastmodifiedresult \
+--check-column last_mod \
+--incremental lastmodified \
+--last-value "2019-06-05 15:52:58" \
+--m 1 \
+--merge-key id 
+
+由于merge-key这种模式是进行了一次完整的mapreduce操作，
+因此最终我们在lastmodifiedresult文件夹下可以看到生成的为part-r-00000这样的文件，
+会发现id=1的name已经得到修改，同时新增了id=6的数据
+
+
+
+----------------------------------------------------------------------
+sqoop 导出数据至mysql
+
+/emp_data/emp_data.txt
+
+1201,gopal,manager,50000,TP
+1202,manisha,preader,50000,TP
+1203,kalil,php dev,30000,AC
+1204,prasanth,php dev,30000,AC
+1205,kranthi,admin,20000,TP
+1206,satishp,grpdes,20000,GR
+
+hadoop fs -mkdir /emp_data
+hadoop fs -put emp_data.txt /emp_data 
+
+首先需要手动创建mysql中的目标表：
+mysql> use userdb;
+mysql> create table employee ( 
+   id int not null primary key, 
+   name varchar(20), 
+   deg varchar(20),
+   salary int,
+   dept varchar(10));
+
+然后执行导出命令
+bin/sqoop export \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table employee1 \
+--columns id,name,deg,salary,dept \
+--export-dir /emp_data/
+
+
+bin/sqoop export \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table employee1 \
+--export-dir /emp_data/
+
+
+----------------------------------------------------------
+更新导出（updateonly模式）
+
+在HDFS文件系统中“/updateonly_1/”目录的下创建一个文件updateonly_1.txt：
+1201,gopal,manager,50000
+1202,manisha,preader,50000
+1203,kalil,php dev,30000
+
+手动创建mysql中的目标表
+mysql> USE userdb;
+mysql> CREATE TABLE updateonly ( 
+   id INT NOT NULL PRIMARY KEY, 
+   name VARCHAR(20), 
+   deg VARCHAR(20),
+   salary INT);
+
+先执行全部导出操作：
+bin/sqoop export \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table updateonly \
+--export-dir /updateonly_1/
+
+新增一个文件updateonly_2.txt：修改了前三条数据并且新增了一条记录
+1201,gopal,manager,1212
+1202,manisha,preader,1313
+1203,kalil,php dev,1414
+1204,allen,java,1515
+
+
+hadoop fs -put updateonly_2.txt /updateonly_2
+
+执行更新导出：
+bin/sqoop export \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table updateonly \
+--export-dir /updateonly_2/ \
+--update-key id \
+--update-mode updateonly
+
+----------------------------------------------------------
+更新导出（allowinsert模式）
+
+在HDFS “/allowinsert_1/”目录的下创建一个文件allowinsert_1.txt：
+1201,gopal,manager,50000
+1202,manisha,preader,50000
+1203,kalil,php dev,30000
+
+手动创建mysql中的目标表
+mysql> USE userdb;
+mysql> CREATE TABLE allowinsert ( 
+   id INT NOT NULL PRIMARY KEY, 
+   name VARCHAR(20), 
+   deg VARCHAR(20),
+   salary INT);
+   
+先执行全部导出操作
+bin/sqoop export \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root \
+--password hadoop \
+--table allowinsert \
+--export-dir /allowinsert_1/
+
+
+allowinsert_2.txt。修改了前三条数据并且新增了一条记录。上传至/ allowinsert_2/目录下：
+1201,gopal,manager,1212
+1202,manisha,preader,1313
+1203,kalil,php dev,1414
+1204,allen,java,1515
+
+
+
+执行更新导出
+bin/sqoop export \
+--connect jdbc:mysql://node-1:3306/userdb \
+--username root --password hadoop \
+--table allowinsert \
+--export-dir /allowinsert_2/ \
+--update-key id \
+--update-mode allowinsert
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

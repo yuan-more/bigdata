@@ -1,0 +1,3 @@
+﻿#command.job
+type=command
+command=sh hello.sh

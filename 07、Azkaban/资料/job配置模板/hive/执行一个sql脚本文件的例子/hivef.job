@@ -1,0 +1,3 @@
+﻿# hivef.job
+type=command
+command=/export/servers/hive/bin/hive -f 'test.sql'

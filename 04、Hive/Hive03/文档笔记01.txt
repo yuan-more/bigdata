@@ -1,0 +1,484 @@
+课前回顾:
+
+1) DQL语句: hive 数据仓库的查询语言
+	单表查询:  group by  在执行分组操作的时候, select后面的字段只能从 group by字段中挑选
+	多表查询:  全外连接
+	排序查询:   
+		sort by  局部排序  
+		distribute by :  在进行MapReduce查询的时候, 以哪个或者那几个为k2往下发 实现分区的操作
+2) hive的参数的传递:
+	如何来设置参数的方式:  三种  
+	如何来动态的传递参数方式:  三种
+3) hive的函数的介绍:
+	show functions ;
+	desc function extended  函数名称;
+4) 常用的函数 :  
+
+今日内容:
+
+1) 常用函数:  字符串函数
+2) hive中高级函数:  lateral view   ,  explode , reflect
+3) hive的自定义的函数
+4) hiver的数据压缩: 如何实现
+5) hive的数据存储
+6) hive的存储和 压缩组合使用方式
+7) hive的调优 :   1~3 (4)
+
+
+
+1) 常用函数: 字符串函数
+	concat  ：  字符串的连接
+	concat_ws  : 
+	substring 
+	upper	
+	lower
+	trim
+	parse_url
+	get_json_object  
+	repeat  
+	split  
+
+2)  hive的高级函数:  lateral view, explode , reflect
+
+准备工作:  
+
+	 create  table t3(name string,children array<string>,address Map<string,string>) 
+	 row format delimited fields terminated by '\t'
+	 collection items terminated by ',' map keys terminated by ':' stored as textFile;
+	 
+	 注意事项: 在创建表的时候, 分隔符号, 一种类型, 只能指定一次分隔符号
+
+
+	explode :  爆炸 将一列的数据, 进行炸开, 形成多行数据
+		使用这个函数, 要是字段的值必须是一个集合(map, 也可以是array)
+
+		作用:
+			如果是一个array集合数据, 炸成一列多行的数据, 每一行就是集合中一个值
+			如果是一个map集合数据, 炸成二列多行的数据, 每一行都是kv对, k和v分为二个字段进行显示
+
+		注意:  
+			1)explode无法且套使用
+			2)  一旦使用了explode, 那么select后面不能再有其他字段了
+
+	lateral view : 主要目的, 就是用来实现explode在select后面时候的时候, 无法编写多个字段问题
+数据: 	
+	a:shandong,b:beijing,c:hebei|1,2,3,4,5,6,7,8,9|[{"source":"7fresh","monthSales":4900,"userCount":1900,"score":"9.9"},{"source":"jd","monthSales":2090,"userCount":78981,"score":"9.8"},{"source":"jdmart","monthSales":6987,"userCount":1600,"score":"9.0"}]
+
+
+需求结果:
+	4900
+	2090
+	6987
+
+如何做 :  其他的方式实现
+	select sale_info from explode_lateral_view;
+	
+	select  get_json_object(sale_info,"$[0].monthSales"),get_json_object(sale_info,"$[1].monthSales"),get_json_object(sale_info,"$[2].monthSales") from explode_lateral_view; // 每次只能获取一个
+	
+
+		
+	完全可以实现的
+	select  explode( split(concat_ws(",",get_json_object(sale_info,"$[0].monthSales"),get_json_object(sale_info,"$[1].monthSales"),get_json_object(sale_info,"$[2].monthSales") ), "," ) ) from explode_lateral_view; // 每次只能获取一个
+	
+	
+如何做:  课件实现	
+	{"source":"7fresh","monthSales":4900,"userCount":1900,"score":"9.9" }
+	{"source":"jd","monthSales":2090,"userCount":78981,"score":"9.8"}
+	{"source":"jdmart","monthSales":6987,"userCount":1600,"score":"9.0"}
+	第一步:  select sale_info from explode_lateral_view;
+	select 
+			   // },{
+		explode(split(  regexp_replace(  regexp_replace(sale_info,'\\[\\{',''),'}]','')    ,   '},\\{'  )) as  sale_info 
+	from explode_lateral_view;
+	
+	
+	
+	第二步:  
+	
+	select 
+		get_json_object(explode(split(regexp_replace(regexp_replace(sale_info,'\\[\\{',''),'}]',''),'},\\{')),'$.monthSales') as  sale_info 
+	from explode_lateral_view;
+		
+	第二步, 会报错, 报explode无法嵌套使用的
+	
+	第三步:  lateral view(侧视图)  理解为 将某一条SQL的结果作为临时表(虚拟表), 让这这个虚拟表 和 具体表形成join, 进行查询操作
+		lateral view使用格式:  
+			lateral view  explode()  虚拟表名 as  字段名称
+	
+		select * from explode_lateral_view   LATERAL VIEW explode (split(goods_id,',')) goods as goods_id2;
+
+
+		最终sql实现结果:
+		select 
+			get_json_object(concat('{',sale_info_1,'}'),'$.source') as source,
+			get_json_object(concat('{',sale_info_1,'}'),'$.monthSales') as monthSales,
+			get_json_object(concat('{',sale_info_1,'}'),'$.userCount') as monthSales,
+			get_json_object(concat('{',sale_info_1,'}'),'$.score') as monthSales 
+		
+		from explode_lateral_view 
+		
+		LATERAL VIEW 
+			explode(split(regexp_replace(regexp_replace(sale_info,'\\[\\{',''),'}]',''),'},\\{'))sale_info as sale_info_1;
+		
+行转列:CONCAT() , CONCAT_WS(),
+	COLLECT_SET() :  使用这个函数, 对某个字段的数据进行去重, 去重之后, 形成一个集合数据
+
+  
+数据
++-------------------+----------------------------+-------------------------+--+
+| person_info.name  | person_info.constellation  | person_info.blood_type  |
++-------------------+----------------------------+-------------------------+--+
+| 孙悟空               | 白羊座                        | A                       |
+| 老王                | 射手座                        | A                       |
+| 宋宋                | 白羊座                        | B                       |
+| 猪八戒               | 白羊座                        | A                       |
+| 凤姐                | 射手座                        | A                       |
++-------------------+----------------------------+-------------------------+--+
+结果要求:
+
+射手座,A            老王|凤姐
+白羊座,A            孙悟空|猪八戒
+白羊座,B            宋宋
+
+
+如何做 :
+	
+select    
+concat_ws(",",constellation,blood_type) as  t1
+from  person_info group by t1 ;  分组后, 才会进行 select后面的操作 , 此SQL是有问题的, 千万不要这么写
+
+
+
+子查询
+
+select
+ t1 
+from  (select  concat_ws(",",constellation,blood_type) as  t1 from  person_info) as  temp  group by  t1;
+
+得出结果:  
++---------------+--+
+|      t1       |
++---------------+--+
+| 射手座,A         |
+| 白羊座,A         |
+| 白羊座,B         |
++---------------+--+
+
+
+select
+ t1 , collect_set(name)
+from  (select name ,concat_ws(",",constellation,blood_type) as  t1 from  person_info) as  temp  group by  t1;
++---------------+----------------+--+
+|      t1       |      _c1       |
++---------------+----------------+--+
+| 射手座,A         | ["老王","凤姐"]    |
+| 白羊座,A         | ["孙悟空","猪八戒"]  |
+| 白羊座,B         | ["宋宋"]         |
++---------------+----------------+--+
+
+select
+ t1 , concat_ws( "|" ,collect_set(name))
+from  (select name ,concat_ws(",",constellation,blood_type) as  t1 from  person_info) as  temp  group by  t1;
+
+
+
+
+列转行: explode  LATERAL VIEW
+
+	数据内容:
+	《疑犯追踪》	悬疑,动作,科幻,剧情
+	《Lie to me》	悬疑,警匪,动作,心理,剧情
+	《战狼2》	战争,动作,灾难
+	
+	结果内容:
+		《疑犯追踪》	悬疑
+		《疑犯追踪》	动作
+		《疑犯追踪》	科幻
+		《疑犯追踪》	剧情
+		《Lie to me》	悬疑
+		《Lie to me》	警匪
+		《Lie to me》	动作
+		《Lie to me》	心理
+		《Lie to me》	剧情
+		《战狼2》	战争
+		《战狼2》	动作
+		《战狼2》	灾难
+
+
+
+第一步: 先将分类进行炸开
+select  
+movie,category1
+from  movie_info 
+LATERAL VIEW  explode(category)  temp1  as  category1;
+	
+
+
+
+reflect:  非常之强大, 秒杀一些UDF函数
+
+	支持, 直接使用java中类中方法, 完成对数据的处理, 
+
+	reflect使用格式:
+		reflect(classPath,methodName,方法的形参列表)
+
+
+
+hive的自定义函数:  当上述的函数无法满足实际需求, 可以通过自定义的方式, 扩展新的函数
+	UDF:  输入一个数据, 输出一个数据, 字段一列中有多少行, 输出就会有多少行
+		concat(id,name)
+	UDAF: 多进一出, 输入多行数据, 出来只有一行的数据
+		聚合函数:  count max min
+	UDTF: 一进多出  explode
+
+	如何自定义 UDF函数:  
+		第一步: 创建一个类, 继承UDF
+		第二步: 重新里面的方法:  evaluate (很特殊, 必须写对了, 写错一个字母, 无法实现自定义)
+			在整个方法中和, 编写函数的业务代码
+		第三步: 对程序进行打包操作, 上传到linux中hive的lib目录下
+		第四步: 在客户端设置自定义函数
+			一种临时函数
+				1) 添加jar包到客户端中: add jar jarPath
+				2) 创建自定义函数的名称:  与函数要执行方法做对应关系
+					create temporary function 函数名称 as '执行函数的包名+类名';
+				3) 直接使用即可,
+				注意: 一旦客户端关闭, 那么就无法使用了
+			一种永久函数
+				1) 切换要使用的函数的数据库: use myhive;
+				2) 添加jar包到客户端中: add jar jarPath
+				3) 创建永久函数，与我们的函数进行关联 :
+					create  function 函数名称 as '执行函数的包名+类名';
+				4) 可以使用永久函数:  
+				
+				
+			关于永久函数管理操作:
+					drop function myhive.myuppercase;  删除
+
+
+json解析自定义函数:  
+{"movie":"1193","rate":"5","timeStamp":"978300760","uid":"1"} 
+{"movie":"661","rate":"3","timeStamp":"978302109","uid":"1"}
+{"movie":"914","rate":"3","timeStamp":"978301968","uid":"1"}
+{"movie":"3408","rate":"4","timeStamp":"978300275","uid":"1"}
+{"movie":"2355","rate":"5","timeStamp":"978824291","uid":"1"}
+{"movie":"1197","rate":"3","timeStamp":"978302268","uid":"1"}
+{"movie":"1287","rate":"5","timeStamp":"978302039","uid":"1"}
+
+第一步:  构建hive表, 只一个字段为String类型, 然后将数据加载这个表中
+
+第二步":自定义一个 函数名称
+	将json进行解析 :  以 \t 分隔 返回数据 1197 \t  3 \t 978302268 \t 1 
+	
+第三步, 将结果数据存储在一个表:
+	insert overwrite  表名 as  
+	
+	
+
+3. hive的数据压缩:  使用snappy
+	在MapReduce中使用压缩的时候, 可以从那几个方面来压缩数据: 二个方向
+		一个:  在map输出的结果的文件上进行数据压缩(减少io的网络传输)
+		一个:  在reduce端, 输出的结果文件上, 对上数据压缩(减少磁盘的存储空间)
+	hive的压缩其实就是MapReduce的压缩方案 :  7个参数设置
+		map端的压缩方案: 
+			set hive.exec.compress.intermediate=true;  :  开启hive的map端压缩
+			set mapreduce.map.output.compress=true;    : 开启 map端的压缩方案
+			set mapreduce.map.output.compress.codec= org.apache.hadoop.io.compress.SnappyCodec;  :  使用哪种压缩算法进行数据压缩
+		reduce端的压缩方案:
+			set hive.exec.compress.output=true;   :  开启hive的reduce压缩方案
+			set mapreduce.output.fileoutputformat.compress=true;  : 开启MapReduce中reduce的压缩方案
+			set mapreduce.output.fileoutputformat.compress.codec = org.apache.hadoop.io.compress.SnappyCodec; : 使用哪种压缩算法进行数据压缩
+			set mapreduce.output.fileoutputformat.compress.type=BLOCK;  ： 对那个数据做压缩
+	
+4.） hive的数据存储格式 : TextFile(普通文件文件 txt) ,sequenceFile(二进制文件格式),ORC,PARQUET
+		
+		行式的存储方案:  TextFile sequenceFile
+		
+		列式存储方案 :   ORC  PARQUET
+		
+	什么是行式存储, 什么是列式存储 ?  
+		
+		
+	在数据仓库中, 一般为三层 :  
+		ODS:  源数据层   
+			在ODS层中, 一般采用数据存储格式 为 TextFile
+		DW :  数据仓库层 
+			先对数据进行数据清洗的工作, 将清洗后的结构化导入的DW层的数据表中
+				在数据仓库层, 表的存储格式一般都是采用 列式的存储方案(ORC) + snappy的压缩方案
+				
+		APP:  数据展示层 :  一般会将数据结果信息 存储在关系型数据库中(mysql , hbase), 保证低的延时性
+			
+	从两个方面, 来比较不同的文件格式,在压缩后, 占用的磁盘空间, 不同文件类型的查询的效率
+		文件格式的占用磁盘空间
+			如果文件大小为 18.1M
+			TextFile:  18.1M
+			ORC   :  2.8 M  
+				文件小的原因: 1) 列式存储本生就会比行式存储占用空间要小  2) 内部有一个压缩方案(zlib压缩)
+			parquet:  13.1 M  1) 列式存储本生就会比行式存储占用空间要小 
+			
+			ORC < parquet <  TextFile
+		从查询的效率来看:
+			textFile: 15.033 
+			ORC :  15.618
+			parquet:  17.355
+			
+			textFile < ORC  <  parquet
+		
+		得出结论:  ORC这种文件格式, 相对而言 性价比最高
+
+5) 存储格式 和  压缩相结合 :  ORC 文件格式  +  snappy结合 
+	在生产环境下,建立数据仓库表结构 参照这个来建立
+	create table log_orc_snappy(
+		track_time string,
+		url string,
+		session_id string,
+		referer string,
+		ip string,
+		end_user_id string,
+		city_id string
+    )ROW FORMAT DELIMITED FIELDS TERMINATED BY '\t' STORED AS orc tblproperties ("orc.compress"="SNAPPY");
+
+
+6) 调优部分: hive的调优
+	6.1:  fetch :  在执行hql语句时候, 能不MapReduce, 就不走MapReduce
+		在hive中, 有一个配置:  hive.fetch.task.conversion
+			取值范围: 
+				none :  不管执行什么查询的HQL, 都会只会MapReduce
+				minimal :  在select *   limit操作的时候, 不会走MapReduce
+				more  : 全局查找、字段查找、过滤查询,limit查找   -----默认值
+	6.2:  本地模式:  当执行一个表数据比较少, 完全没有比较要MapReduce的程序提交给yarn平台
+			如果小文家过多,当提交到yarn平台来执行, 对于map 和reduce, 都要先进行资源的分配的过程, 比较耗时间的
+				资源的申请 花费 10分钟, 但是在执行任务的时候只有 几秒钟
+			在idea中执行的时候, 采用本地执行, 而本地执行没有那些提交过程, 整个执行查询比较快
+
+			如果发现执行的是一个小表, 那就不要在将转换后MapReduce提交给yarn平台了, 执行自己在本地执行一下即可
+				hive.exec.mode.local.auto  : 默认为 false  不开启本地模式, 只有有MapReduce, 就会提交给yarn平台
+				set hive.exec.mode.local.auto.inputbytes.max=134217728; 设置local mr的最大输入数据量，当输入数据量小于这个值时采用local? mr的方式
+				set hive.exec.mode.local.auto.input.files.max=4;  设置local mr的最大输入文件个数，当输入文件个数小于这个值时采用local mr的方式
+			
+			注意: 一般在开发环境下, 要将本地模式开启, 在线上环境, 一般将其关闭
+
+	6.3: 表的优化:
+		6.3.1: join  优化调优:  将多个表连接在一起, 进行多表的查询
+			第一个:  小表  join  大表
+				使用map端join方案, 将小表数据放置在内存中实现块缓存, 让大表和内存中小表数据进行join
+				在hive中, 是不是有一个优化器:对一些SQL进行动态优化
+					如果是小表join大表, 或者大表join小表, 自动对其使用map端join
+				
+			第二个: 多个表关联情况
+				例如: A  JOIN B  JOIN C  JOIN D  JOIN E
+				如果SQL执行比较慢, 对其进行优化的时候, 无法得知是那两个在join的时候效率是比较慢
+				
+				将多个表拆解为 两两相连 操作 :   
+					A  JOIN B   :  临时表 1   
+					临时表 1 join  C :  临时表 2
+					临时表 2  join  D :  临时表 3
+					临时表 3 JOIN  E  :  结果数据表
+				这种方式, 就可以得出到底是那两个在join的时候, 出现的效率问题, 然后针对性的解决
+			第三个: 大表 join 大表
+				1) 空值过滤: 将一些空的数据全部过滤, 或者先过滤不符合的数据, 在进行join连接
+					商品表, 
+						p001 衣服  189.98
+						p002 裤子 289.98
+						p003 鞋子 389.98
+						null  xx  
+					订单表
+						o001  p001  189.98
+						o002  p001  189.98
+						o003  p002  289.98
+						o004  p003  389.98
+						o005  p003  389.98
+						
+					需求: 请查询 今年各个商品一共买了多了钱,
+						正常写法:  select sum(price) from  product p  join  order o on  p.pid = o.pid where  p.name="鞋子"
+						优化后写法: select sum(price) from (select pid from  product where  name = "鞋子") p  join  order o on p.pid = o.pid  ;
+					
+				
+				
+				2) 空key转换:  将空值使用随机数, 进行处理, 
+					如果空值过多, 就会导致将大量的空值数据发送给同一个reduce, 导致数据倾斜的问题, 让每一个reduce执行数据的时间是均衡
+			
+					SELECT a.*
+					FROM nullidtable a
+					LEFT JOIN ori b 
+					ON    CASE WHEN a.id IS NULL THEN concat('hive', rand()) ELSE a.id END = b.id;
+			
+							a.id  = b.id
+			
+		6.3.2 : mapjoin :  实现hive的mapJoin方案:  
+				hive.auto.convert.join  :  是否要开启map端的join  默认值就是 true
+				hive.mapjoin.smalltable.filesize=25123456 :    设置大小表的临界值  默认是 25M
+					这个值, 根据服务器资源, 来动态修改
+				在进行map端的join的时候, 不管是小表join大表, 还是大表join小表, 都是可以的(新版本)
+					如果使用0.x的版本, 必须要将小表放置在最前面
+					
+				在新版本, hive的优化器, 会自动识别那个表示小表, 然后将其放置到内存中, 跟位置无关
+					free -m
+		6.3.3: group by :  分组操作  主要是利用MapReduce中combiner(规约)
+			规约: 实现在map端提前进行局部的聚合
+			
+			在hive中, 要想实现map端聚合操作, 只需要对其设置即可:
+				set hive.map.aggr = true;  是否要开启map端聚合 默认是开启的
+				set hive.groupby.mapaggr.checkinterval = 100000;在Map端进行聚合操作的条目数目
+				
+				set hive.groupby.skewindata = true;是否要自动实现负载均衡的策略, 避免数据倾斜的问题
+					将一个任务变更为两个job任务, 第一个job任务将数据随机发生到不同reduce中 (相同key可以在不同的reduce中)
+						第一个任务, 对每一个reduce进行聚合操作 (局部聚合)
+					开启第二个任务, 将第一个任务结果, 作为第二个任务输入, 再次进行处理(同一个key发生到同一个reduce中):
+						在第二个任务中, 对每一个reduce进行聚合操作 (最终结果数据)
+		
+		6.3.4: 对count优化:  
+				需求: 请统计出, 某一个列中不重复的数据有几个
+					select  count(distinct id )  from  t1  ---效率是比较低的
+						去重操作, 只能使用一个reducetask: 如果数据量过大, 导致reduce执行时间过长, 整个HQL语句执行时间也会变长
+				
+					可以优化:  先进行group by , 然后在count即可
+						select  count(id)  from  t1  group by  id;  得出每一组中相同的id有多少个
+						
+					select count(id) from (select  id  from  t1  group by  id) t2 ;
+						可以使用多个reduceTask实现的, 这样查询的效率会高一点, 前提数据量足够大, 否则会上面的SQL更慢, 因为这里产生一个临时表
+		6.3.5: 笛卡尔积:  能不出现笛卡尔积的现象, 就不要出现
+					避免join的时候不加on条件，或者无效的on条件
+		
+		6.3.6"  使用分区过滤 列过滤:
+			1) 如果使用的分区表, 一定要添加分区的字段, 让MapReduce找对应的分区的文件数据
+			2) 尽可能在使用select查询的时候, 后面跟对应要展示字段数据, 不要使用 *号 
+					能提前过滤, 就提前过滤, 不要在join后对某一个表做过滤
+		
+		6.3.7:  动态分区调整: 将一个分区表的数据导入到另一个分区表中
+			1) 开启动态分区:  set hive.exec.dynamic.partition=true;    默认开启
+			2) 关闭严格模式:  set hive.exec.dynamic.partition.mode=nonstrict;
+			3) 一共可以创建多少个动态分区:  set  hive.exec.max.dynamic.partitions=1000;  有可能会修改, 取决于分区表中分区的数量
+			4) 在每一个MapReduce的节点上可以创建多个动态分区:  set hive.exec.max.dynamic.partitions.pernode=100  有可能会修改, 取决于分区表中分区的数量
+			5) hive可以打开多少个文件:  set hive.exec.max.created.files=100000;
+			6) 如果发现有空的分区, 要不要抛异常:  set hive.error.on.empty.partition=false;  
+			
+			动态分区的SQL
+			INSERT overwrite TABLE ori_partitioned_target PARTITION (p_time)
+			SELECT id, time, uid, keyword, url_rank, click_num,click_url, p_time
+			FROM ori_partitioned;
+			
+			注意: 在编写动态分区的时候, select中最后面的字段必须是分区字段, 否则失败
+			
+
+
+1) 常用函数: string函数
+2) 高级函数: explode LATERAL VIEW  reflect		
+3) 自定义udf函数 :  作业   
+4) hive的数据压缩 :   如何设置hive的压缩  7个
+5) hive的数据存储格式:  4种  textFile  sequenceFile  orc parquet
+	行存储 :  textFile  sequenceFile
+	列存储 : orc parquet
+	
+	在数据仓库中: 每一层使用哪种数据格式
+		ODS :  TEXTfILE
+		DW  ORC
+		APP :  数据库
+	总结: 使用 orc +  snappy
+6) 存储和压缩的结合:  orc +snappy
+7) 调优: 理解
+
+
+
+SQL能力:  写 网上查询: 必备50道SQL	
+	
+			

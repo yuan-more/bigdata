@@ -1,0 +1,5 @@
+”√mapreduce µœ÷
+select order.orderid,order.pdtid,pdts.pdt_name,oder.amount 
+from order
+join pdts
+on order.pdtid=pdts.pdtid

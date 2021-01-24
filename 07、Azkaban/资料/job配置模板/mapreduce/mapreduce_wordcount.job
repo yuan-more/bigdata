@@ -1,0 +1,3 @@
+﻿# mapreduce_wordcount.job
+type=command
+command=/export/servers/hadoop-2.7.5/bin/hadoop  jar hadoop-mapreduce-examples-2.7.5.jar wordcount /wc/input /wc/output

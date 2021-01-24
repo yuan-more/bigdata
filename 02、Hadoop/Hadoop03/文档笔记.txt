@@ -1,0 +1,190 @@
+
+课前回顾:
+	1） hdfs基本介绍 : 分布式文件存储系统
+	2) hdfs的架构 :  namenode  datanode   
+		namenode  datanode 之间:  心跳机制, 负载均衡  副本机制
+		client客户端:  发送请求, 文件切分
+	3) hdfs的命令 : hdfs  dfs  -操作命令
+	4) hdfs的高级命令  :  hdfs  dfsadmin -操作命令
+	5) hdfs的block块和副本机制
+	6) hdfs的写入的流程 :    记下来
+	7) hdfs的读数据的流程 : 记下来
+	8) namenode工作机制对元数据的管理 :
+		namennode如何管理元数据 : 存储在内存中,然后在本地还有一份完整的备份
+			备份文件:  fsImage  edits
+			
+		snn : 将两个文件进行一个合并, 形成一个新的fsImage文件
+	
+		snn如何来合并fsImage  edits文件流程:  记下来
+	9) datanode工作机制以及数据存储:  
+		如何来动态的上线datanode
+	10) block块文件拼接操作
+	
+今日内容:
+	1) hdfs的JavaAPI操作 (作业)
+	2) hdfs的其他功能介绍(知道就行)
+	3) MapReduce 基本介绍
+	4) MapReduce的编程规范 : 天龙八部  记下来
+	5) MapReduce的入门程序 :  wordCount
+	6) MapReduce的运行的模式 : 本地运行(standalone), 集群运行
+	
+
+1) javaAPI操作 :
+	如果要连接远端的hdfs的时候, 连接的客户端服务器必须要具备hadoop基本运行环境
+	
+	
+小文件合并操作  :  hdfs的javaapi操作, har(归档文件),MapReduce
+	hdfs的javaapi操作 :  适合于合并同类型文件
+			persion1.json  persion2.json  persion3.json
+
+	har(归档文件),MapReduce :  适合于合并不同类型文件 
+
+
+2) hdfs的其他的功能介绍:
+	2.1) 集群之间数据的拷贝: 测试环境, 生产环境
+			将测试环境下hadoop集群的数据拷贝生成环境下hadoop集群中
+
+		bin/hadoop distcp hadoop集群地址1  hadoop集群地址2
+	2.2) hadoop归档(har)文件 : 小文件合并的操作
+			归档文件理解为 类似于 压 : 将多个文件合并在一起形成压缩文件 后缀名:  .har
+			适合于: 不同类型的文件, 并且文件已经存储在hdfs中了
+			
+			注意: 如果要使用归档文件进行小文件的合并, 必须要保证, yarn平台是启动的状态, 否则合并失败
+			
+			
+		创建归档文件命令:
+			bin/hadoop archive -archiveName 归档文件的名称 -p 需要合并的目录列表或者文件的列表  dist
+		解压归档文件操作:
+			hdfs dfs -cp har:///user/myhar.har/* /user/har/ 
+				如果是一个har文件 来源地必须是har协议开头, 否则就称为普通文件拷贝操作
+		
+
+	2.3) hdfs的快照机制 : 保存集群某一个状态信息  (差异化快照)  最初始只保存了映射关系 
+			hdfs的快照只能针对于文件夹, 不能针对于文件
+			只保存在拍摄快照后, 被修改的文件内容, 刚刚拍摄完的快照文件, 什么内容都不会存储的
+			
+			注意:  hdfs中,默认不允许对任何的目录拍摄快照
+			
+			1、 开启指定目录的快照功能
+				hdfs dfsadmin  -allowSnapshot  路径 
+			2、禁用指定目录的快照功能（默认就是禁用状态）
+				hdfs dfsadmin  -disallowSnapshot  路径
+			3、给某个路径创建快照snapshot
+				hdfs dfs -createSnapshot  路径
+			4、指定快照名称进行创建快照snapshot
+				hdfs dfs  -createSnapshot 路径 名称    
+			5、给快照重新命名
+				hdfs dfs  -renameSnapshot  路径 旧名称  新名称
+			6、列出当前用户所有可快照目录
+				hdfs lsSnapshottableDir  
+			7、比较两个快照的目录不同之处
+				hdfs snapshotDiff  路径1  路径2
+			8、删除快照snapshot
+				hdfs dfs -deleteSnapshot <path> <snapshotName> 
+	2.3) 回收站:  hdfs默认没有开启垃圾桶机制
+		
+		客户端在操作hdfs的时候, 要使用配置文件的, 如果没有指定配置文件, 采用默认的配置
+		
+		如何在客户端开启垃圾桶机制:  
+			1) 使用configuration配置对象, 设置垃圾桶开启
+			
+			2) 将配置文件在, windows客户端所在项目中加载配置文件
+		
+
+4) MapReduce:  分布式的计算框架	
+		理解: 分而治之
+		
+	将一个大的问题, 拆分成各个小的问题, 将各个小的问题进行分别处理, 然后合并解决大的问题	
+	
+搬砖 : 可以多找一些人, 一起进行搬砖	
+计数统计 :  1~10000 得出多少
+	1~1000   1001  ~ 2000   2001  ~ 3000  ....
+	
+图书馆数书过程: 
+
+	
+
+船过桥洞 : 无法使用分而治之的思想
+
+大部分的场景是可以使用分而治之的思想, 提高计算的效率
+
+
+MapReduce主要分为两个阶段 :  
+
+分 : Map 将大的问题, 拆分多个小的饿问题的过程
+
+
+合 : Reduce 将小的问题的结果, 进行汇总处理的操作
+
+
+核心功能:  将用户编写的业务逻辑代码和自带默认组件整合成一个完整的分布式运算程序
+
+	既然是一个计算的框架: 
+		必然得有一个输入
+		必然得有输出
+
+
+MapReduce的三大进程:  
+
+	1、MR AppMaster：负责整个程序的过程调度及状态协调   -----applicationMaster(资源的 申请, 任务的分配 )
+	2、MapTask：负责map阶段的整个数据处理流程
+	3、ReduceTask：负责reduce阶段的整个数据处理流程
+
+
+
+编写MapReduce一共有八大步骤:  天龙八部    记下来
+	
+	map阶段: 两大步骤
+		1) 读取文件数据, 将数据解析为 k  v键值对 称为 k1  和 v1
+		2) 自定义一个map的逻辑, 接收 k1  和 v1 的值, 将k1 和 v1转换 为 k2  和  v2
+	shuffle阶段:   四个步骤  主要对k2进行重新处理  转换为 新的 k2  和 v2
+		3) 分区 :   将相同的key发往同一个reduce中
+		4) 排序 :   主要对k进行排序操作
+		5) 规约 :   是MapReduce的优化步骤, 一般可以省略
+		6) 分组 :   将相同的key的value的值, 合并为一个集合的过程
+	reduce阶段:  二个步骤
+		7) 自定义reduce的逻辑, 接收 k2 和 v2 的数据, 将其转换为 k3  和 v3
+		8) 将数据进行输出保存即可
+
+以上的八个步骤, 对应java代码中, 实际上就是八个类
+		
+如果要实现一个最简单的MapReduce程序:
+	只需要编写其中二步即可: 
+		一个map的逻辑, 一个reduce的逻辑
+		
+		
+如果要实现map和reduce:记住两个类
+	mapper : map的方法  : 如何将 k1  和 v1 转换为 k2  v2   
+	reducer : reduce的方法  如何将k2 和 v2 转换为 k3  和 v3
+
+
+
+MapReduce的运行方式:
+	集群运行模式:  
+		1) 首先对MapReduce程序进行打包操作, 形成一个jar包
+				在打包前, 确定驱动类中 是否设置了jar的入口类: 
+						job.setJarByClass(JobMain.class);  如果不设置, 在运行时会报错
+		2) 将jar包上传到hadoop集群所在的服务器中
+		3) 提交任务给yarn集群
+			yarn jar jarFilePath jarMainClass  [args...] 
+			
+			jarFilePath :  这个jar包所在的文件路径
+			jarMainClass : 主入口类  (包名 + 类名)  
+			
+			
+			
+	在进行打包的时候:  
+		如果添加了打包插件:  会将用户导入的第三方的jar包, 一并打入当前的jar包, 形成一个farJar (胖jar包)
+		如果没有添加打包插件: 不会将用户导入的第三方的jar包, 打入的当前的jar包
+
+
+		注意: 在使用有打包插件的工程的时候, 在进行打包的时候, 如果有一些包, 运行环境以及给我们提供了, 那么不需要将这个jar
+				包打入当前的jar包中
+			如果不想将某一个jar包打入到当前的jar中, 可以给依赖添加 : <scope>provided</scope> 
+				但是, (idea中)如果在本地执行的时候, 需要将所有添加<scope>provided</scope> 全部删除, 否则包无法找到类的错误
+			
+			
+			
+			
+			
+			

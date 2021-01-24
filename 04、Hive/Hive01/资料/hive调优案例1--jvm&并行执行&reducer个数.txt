@@ -1,0 +1,57 @@
+hive-调优笔记：JVM重用，并行执行、调整reducer个数的用处
+
+解释：
+
+1、JVM重用是hadoop调优参数的内容，对hive的性能具有非常大的影响，特别是对于很难避免小文件的场景或者task特别多的场景，这类场景大多数执行时间都很短。hadoop默认配置是使用派生JVM来执行map和reduce任务的，这时jvm的启动过程可能会造成相当大的开销，尤其是执行的job包含有成千上万个task任务的情况。
+
+    JVM重用可以使得JVM实例在同一个JOB中重新使用N次，N的值可以在Hadoop的mapre-site.xml文件中进行设置
+
+     mapred.job.reuse.jvm.num.tasks
+
+ 也可在hive的执行设置：
+
+   set  mapred.job.reuse.jvm.num.tasks=10;
+
+   JVM的一个缺点是，开启JVM重用将会一直占用使用到的task插槽，以便进行重用，直到任务完成后才能释放。如果某个“不平衡“的job中有几个reduce task 执行的时间要比其他reduce task消耗的时间多得多的话，那么保留的插槽就会一直空闲着却无法被其他的job使用，直到所有的task都结束了才会释放。
+
+
+
+2、并行执行，意思是同步执行hive的多个阶段，hive在执行过程，将一个查询转化成一个或者多个阶段。某个特定的job可能包含众多的阶段，而这些阶段可能并非完全相互依赖的，也就是说可以并行执行的，这样可能使得整个job的执行时间缩短
+
+   hive执行开启：set hive.exec.parallel=true
+
+
+
+3、调整reducer个数：
+
+     设置  hive.exec.reducers.bytes.per.reducer（默认为1GB），受hive.exec.reducers.max（默认为999）影响：
+
+     mapred.reduce.tasks = min ( 参数2，总输入数据量/参数1 )
+
+
+
+三个优化的场景：
+
+    采用一个数据源多份处理的SQL来执行：
+
+     FROM TABLE1
+  INSERT OVERWRITE LOCAL DIRECTORY '/data/data_table/data_table1.txt' SELECT 20140303, col1, col2, 2160701, COUNT(DISTINCT col) WHERE col3 <= 20140303 AND col3 >= 20140201 GROUP BY col1, col2
+  INSERT OVERWRITE LOCAL DIRECTORY '/data/data_table/data_table2.txt' SELECT 20140302, col1, col2, 2160701, COUNT(DISTINCT col) WHERE col3 <= 20140302 AND col3 >= 20140131 GROUP BY col1, col2
+  INSERT OVERWRITE LOCAL DIRECTORY '/data/data_table/data_table3.txt' SELECT 20140301, col1, col2, 2160701, COUNT(DISTINCT col) WHERE col3 <= 20140301 AND col3 >= 20140130 GROUP BY col1, col2
+  INSERT OVERWRITE LOCAL DIRECTORY '/data/data_table/data_table4.txt' SELECT 20140228, col1, col2, 2160701, COUNT(DISTINCT col) WHERE col3 <= 20140228 AND col3 >= 20140129 GROUP BY col1, col2
+  INSERT OVERWRITE LOCAL DIRECTORY '/data/data_table/data_table5.txt' SELECT 20140227, col1, col2, 2160701, COUNT(DISTINCT col) WHERE col3 <= 20140227 AND col3 >= 20140128 GROUP BY col1, col2
+  INSERT OVERWRITE LOCAL DIRECTORY '/data/data_table/data_table6.txt' SELECT 20140226, col1, col2, 2160701, COUNT(DISTINCT col) WHERE col3 <= 20140226 AND col3 >= 20140127 GROUP BY col1, col2
+
+    ………………省略
+
+     没设置前的，执行时间是450s
+
+设置参数：
+
+    set mapred.job.reuse.jvm.num.tasks=20
+   set hive.exec.reducers.bytes.per.reducer=150000000
+   set hive.exec.parallel=true;
+
+
+
+   执行时间缩短到273s  ,合理利用一个参数调整，可以达到部分调优

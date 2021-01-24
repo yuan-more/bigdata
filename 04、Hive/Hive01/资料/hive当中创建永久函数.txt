@@ -1,0 +1,31 @@
+创建临时函数
+1、use myhive；
+2、add jar /export/servers/hive-1.1.0-cdh5.14.0/lib/udf.jar;
+3、list  jars;   查看hive当中添加的jar
+4、创建function与我们自定义函数进行关联
+	create temporary function touppercase as 'cn.itcast.hive.udf.HiveUDF';
+5、查看我们关联的临时函数
+	show functions like 'to*';
+
+
+创建永久函数
+1、use myhive;
+2、add jar /export/servers/hive-1.1.0-cdh5.14.0/lib/udf.jar;
+3、list  jars;
+4、 create  function myuppercase as 'cn.itcast.hive.udf.HiveUDF';
+5、查看我们的永久函数
+	show functions like 'my*';
+6、使用永久函数
+	select myhive.myuppercase('helloworld');
+
+7、删除永久函数
+	 drop function myhive.myuppercase;
+
+8、查看函数
+	show functions like 'my*';
+
+
+
+
+
+

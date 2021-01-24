@@ -1,0 +1,4 @@
+# two.job
+type=command
+dependencies=one
+command=echo "this is job two"
