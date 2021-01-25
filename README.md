@@ -8,20 +8,6 @@
 
 # 大数据学习路线
 
-系统的学习大数据相关的课程，可按照如下顺序学习
-
-需要先掌握 **Java SE** 阶段，**Linux** 基础命令，**MySQL**数据库
-
-如果上述基础技能没有掌握，可网上搜索相关课程进行学习（这类基础课程网上免费的特别多）
-
-Java只需要学习 Java SE 阶段即可
-
-会在虚拟机中安装Linux发行版本（建议安装 CentOS），学完Linux基础即可。
-
-MySQL需要学习 sql 语法，范式，事务等。
-
-如果以上技能你都掌握的话，接下来就进入大数据框架
-
 可按照如下顺序进行学习（涵盖ETL、数仓、开发等岗位）
 
 **hadoop -> zookeeper -> hive -> flume && sqoop -> azkaban && oozie -> 数仓建模理论+实践 -> hbase -> redis -> kafka -> elk -> scala -> spark -> kylin -> flink -> 实时数仓项目**
