@@ -72,7 +72,7 @@
 [azkaban详细文档](https://github.com/sunmyuan/bigdata/blob/master/07Azkaban/%E8%AF%A6%E7%BB%86%E6%96%87%E6%A1%A3/Azkaban.md)
 
 ## Hbase
-[hbase详细文档-基础、原理、调优]()
+[hbase详细文档-基础、原理、调优]() (暂未发布，即将完成，敬请期待)
 
 
 # 持续更新中...
