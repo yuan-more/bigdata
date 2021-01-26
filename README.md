@@ -29,9 +29,6 @@
 
 # 大数据必备技能学习
 
-![大数据家族](https://cdn.jsdelivr.net/gh/sunmyuan/cdn/210106.png)
-
-
 **注：文档中涉及的资料及安装包下载地址都在文档对应的文件夹下**
 
 ## Hadoop
